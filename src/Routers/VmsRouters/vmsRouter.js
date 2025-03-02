@@ -23,7 +23,7 @@ vmsRouter.post('/dashBoardAppointmentStatusDetails', authenticateToken, DashBoar
 
 vmsRouter.post('/invitationOverView', authenticateToken,VisitorInvitationOverView);
 vmsRouter.post('/invitationOverViewDetails', authenticateToken, VisitorInvitationOverViewDetails);
-vmsRouter.post('/appointmentAnalytics', authenticateToken, VisitorAppointmentAnalytics);
+vmsRouter.post('/git pull origin main --rebase', authenticateToken, VisitorAppointmentAnalytics);
 
 
 
