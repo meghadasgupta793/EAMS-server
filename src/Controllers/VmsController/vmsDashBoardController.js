@@ -166,10 +166,51 @@ const VisitorInvitationOverViewDetails = async (req, res, next) => {
     }
 }
 
+const VisitorAppointmentAnalytics = async (req, res, next) => {
+    try {
+        const { UserRole, EmployeeId, date, AppointmentStatus } = req.body;
+
+
+        // Logging to verify request body
+        console.log("Request Body:", req.body);
+
+
+        if (!UserRole || !EmployeeId || !AppointmentStatus) {
+            return res.status(400).send({
+                message: "UserRole and EmployeeId and Date are required"
+            });
+        }
+
+        const pool = await poolPromise;
+        const request = pool.request();
+
+        // Set input parameters
+        request.input('UserRole', UserRole);
+        request.input('EmployeeId', EmployeeId);
+        request.input('AppointmentStatus', AppointmentStatus);
+
+
+        // Execute stored procedure
+        const result = await request.execute('VMS.spLAppointmentAnalytics');
+
+        res.status(200).send({
+            message: "VisitorAppointmentAnalytics are returned",
+            data: result.recordset
+        })
+
+    } catch (error) {
+        res.status(500).send({
+            message: "An error occurred while retrieving VisitorAppointmentAnalytics",
+            error: error.message
+        });
+        next(error);
+    }
+}
 
 module.exports = {
     DashBoardAppointmentStatusCount,
     DashBoardAppointmentStatusDetails,
     VisitorInvitationOverView,
-    VisitorInvitationOverViewDetails
+    VisitorInvitationOverViewDetails,
+    VisitorAppointmentAnalytics
 }

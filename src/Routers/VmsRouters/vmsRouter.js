@@ -2,7 +2,7 @@ const express = require('express');
 const authenticateToken = require("../../auth/authenticateToken ");
 const multer = require('multer');
 const { fileFilter, visitorImgStorage } = require('../../utils/fileHelper');
-const { DashBoardAppointmentStatusCount, DashBoardAppointmentStatusDetails, VisitorInvitationOverView, VisitorInvitationOverViewDetails } = require('../../Controllers/VmsController/vmsDashBoardController');
+const { DashBoardAppointmentStatusCount, DashBoardAppointmentStatusDetails, VisitorInvitationOverView, VisitorInvitationOverViewDetails, VisitorAppointmentAnalytics } = require('../../Controllers/VmsController/vmsDashBoardController');
 const { VisitorApointmentCreate, approvedAppointment, checkInAppointment, checkOutAppointment, appointmentDetailsByAppointmentId, appointmentDetailsByDateRange, InviteVisitor } = require('../../Controllers/VmsController/vmsAppointmentController');
 const { getVisitorAllVisitor, searchByVisitorMobileNo } = require('../../Controllers/VmsController/vmsVisitorController');
 
@@ -23,6 +23,7 @@ vmsRouter.post('/dashBoardAppointmentStatusDetails', authenticateToken, DashBoar
 
 vmsRouter.post('/invitationOverView', authenticateToken,VisitorInvitationOverView);
 vmsRouter.post('/invitationOverViewDetails', authenticateToken, VisitorInvitationOverViewDetails);
+vmsRouter.post('/appointmentAnalytics', authenticateToken, VisitorAppointmentAnalytics);
 
 
 
