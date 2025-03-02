@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: eams-server
+    env: node
+    buildCommand: npm install
+    startCommand: node src/server.js
