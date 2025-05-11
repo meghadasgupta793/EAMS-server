@@ -1,5 +1,5 @@
 const express = require('express');
-const { createEmployees, updateEmployee, getAllEmployee, getEmployeeByID, getEmployeeByEmpNoOrName, getEmployeeByEmpNo, getEmpInfoByID } = require('../../Controllers/AdminController/employeeController');
+const { createEmployees, updateEmployee, getAllEmployee, getEmployeeByID, getEmployeeByEmpNoOrName, getEmployeeByEmpNo, getEmpInfoByID, getAllEmpInfo } = require('../../Controllers/AdminController/employeeController');
 const multer = require('multer');
 const { fileFilter, employeeImgStorage } = require('../../utils/fileHelper');
 const authenticateToken = require('../../auth/authenticateToken ');
@@ -16,6 +16,7 @@ const employeeRouter = express.Router();
 
 
 employeeRouter.get('/allEmployees', authenticateToken,getAllEmployee); // Get all EmployeeS
+employeeRouter.get('/allEmpInfo',getAllEmpInfo); 
 employeeRouter.get('/:id', authenticateToken,getEmployeeByID); // Get EmployeeS
 employeeRouter.get('/getEmployeeByEmpNoOrName',authenticateToken, getEmployeeByEmpNoOrName); // Get EmployeeS
 // Route to create a new employee

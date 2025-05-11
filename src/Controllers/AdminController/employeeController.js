@@ -522,11 +522,43 @@ const getEmpInfoByID = async (req, res, next) => {
     }
 };
 
+const getAllEmpInfo = async (req, res, next) => {
+    try {
+        const pool = await poolPromise;
+        
+        const result = await pool.request()
+           
+            .query(`
+                SELECT id,EmpNo, EmployeeName
+                FROM  tblMEmployee
+            `);
+
+        if (!result.recordset.length) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
+        res.status(200).json({
+            message: "Employee retrieved successfully",
+            data: result.recordset,
+        });
+
+    } catch (error) {
+        console.error("Error fetching employee:", error);
+        res.status(500).json({
+            message: "An error occurred while retrieving employee details",
+            error: error.message,
+        });
+        next(error);
+    }
+};
+
+
 
 
 
 module.exports = {createEmployees,updateEmployee,getAllEmployee,getEmployeeByID,
     getEmployeeByEmpNoOrName,
     getEmpInfoByID,
-    getEmployeeByEmpNo}
+    getEmployeeByEmpNo,
+    getAllEmpInfo}
 

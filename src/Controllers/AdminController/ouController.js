@@ -7,10 +7,10 @@ const getAllOu = async (req, res, next) => {
         const result = await pool.request().query(`
             select OU.ID ID,OU.OUCode OUCode,OU.OUName OUName,POU.ID ParentOU,POU.OUCode ParentOUCode,
             OT.ID OUType,OT.OUType OUTypeName,OW.ID OwnerID,OW.Name OwnerName
-            from tblMOU OU
-            inner join tblMOUType OT on OU.OUType=OT.ID
-            inner join tblMOwner OW on OU.OwnerID=OW.ID
-            left join tblMOU POU on POU.ID=OU.ParentOU
+            from tblMOU (NOLOCK) OU
+            inner join tblMOUType (NOLOCK)  OT on OU.OUType=OT.ID
+            inner join tblMOwner (NOLOCK) OW on OU.OwnerID=OW.ID
+            left join tblMOU (NOLOCK) POU on POU.ID=OU.ParentOU
         `);
 
         if (result.recordset.length > 0) {
@@ -112,56 +112,55 @@ const createOU = async (req, res, next) => {
 // UPDATE OU
 const updateOU = async (req, res, next) => {
     try {
-        const pool = await poolPromise;
-
-        // Fetch OU record from the database
-        const result = await pool.request()
-            .input('Id', sql.Int, req.params.id)
-            .query('SELECT * FROM tblMOU WHERE ID = @Id');
-
-        // If OU record exists, update it
-        if (result.recordset.length) {
-            const { OUCode, OUName, OUType, ParentOU, OwnerID } = req.body;
-
-            await pool.request()
-                .input('Id', sql.Int, req.params.id)
-                .input('OUCode', sql.VarChar(20), OUCode)
-                .input('OUName', sql.VarChar(100), OUName)
-                .input('OUType', sql.Int, OUType)
-                .input('ParentOU', sql.Int, ParentOU)
-                .input('OwnerID', sql.Int, OwnerID)
-                .query(`
-                    UPDATE tblMOU
-                    SET OUCode = @OUCode, OUName = @OUName, OUType = @OUType, ParentOU = @ParentOU, OwnerID = @OwnerID
-                    WHERE ID = @Id;
-                `);
-
-            res.status(200).send({
-                message: "OU updated successfully",
-                data: {
-                    Id: req.params.id,
-                    OUCode,
-                    OUName,
-                    OUType,
-                    ParentOU,
-                    OwnerID
-                }
-            });
-        } else {
-            // OU not found
-            return res.status(404).send({
-                message: `OU with ID '${req.params.id}' not found`
-            });
-        }
-    } catch (error) {
-        res.status(500).send({
-            message: "An error occurred while updating the OU",
-            error: error.message
+      const pool = await poolPromise;
+  
+      // Fetch OU record from the database
+      const result = await pool.request()
+        .input('Id', sql.Int, req.params.id)
+        .query('SELECT * FROM tblMOU WHERE ID = @Id');
+  
+      // If OU record exists, update it
+      if (result.recordset.length) {
+        const { OUName, OUType, ParentOU, OwnerID } = req.body;
+        const OUCode = result.recordset[0].OUCode; // Fetch OUCode from the database
+  
+        await pool.request()
+          .input('Id', sql.Int, req.params.id)
+          .input('OUName', sql.VarChar(100), OUName)
+          .input('OUType', sql.Int, OUType)
+          .input('ParentOU', sql.Int, ParentOU)
+          .input('OwnerID', sql.Int, OwnerID)
+          .query(`
+            UPDATE tblMOU
+            SET OUName = @OUName, OUType = @OUType, ParentOU = @ParentOU, OwnerID = @OwnerID
+            WHERE ID = @Id;
+          `);
+  
+        res.status(200).send({
+          message: "OU updated successfully",
+          data: {
+            Id: req.params.id,
+            OUCode, // Include the fetched OUCode in the response
+            OUName,
+            OUType,
+            ParentOU,
+            OwnerID
+          }
         });
-        next(error);
+      } else {
+        // OU not found
+        return res.status(404).send({
+          message: `OU with ID '${req.params.id}' not found`
+        });
+      }
+    } catch (error) {
+      res.status(500).send({
+        message: "An error occurred while updating the OU",
+        error: error.message
+      });
+      next(error);
     }
-};
-
+  };
 
 
 //Delete Ou
@@ -387,38 +386,38 @@ const deleteOUType = async (req, res, next) => {
 
 const getAllOuOwner = async (req, res, next) => {
     try {
-      const pool = await poolPromise;
-      console.log("Connected to the database"); // Debugging log
-  
-      const result = await pool.request().query('SELECT * FROM tblMOwner');
-  
-      // Log the result for debugging
-      console.log("Query executed, result:", result);
-  
-      if (result.recordset.length > 0) {
-        res.status(200).send({
-          message: "OUOwner are retrieved successfully",
-          data: result.recordset
-        });
-      } else {
-        res.status(404).send({
-          message: "No OUOwner found"
-        });
-      }
-    } catch (error) {
-      console.error("Error retrieving OUOwner:", error);
-  
-      // Properly format the error response
-      res.status(500).send({
-        message: "An error occurred while retrieving OUOwner",
-        error: error.message
-      });
-  
-      if (next) next(error); // Optional if you want to forward the error
-    }
-  };
+        const pool = await poolPromise;
+        console.log("Connected to the database"); // Debugging log
 
-  const getOuOwnerById = async (req, res, next) => {
+        const result = await pool.request().query('SELECT * FROM tblMOwner');
+
+        // Log the result for debugging
+        console.log("Query executed, result:", result);
+
+        if (result.recordset.length > 0) {
+            res.status(200).send({
+                message: "OUOwner are retrieved successfully",
+                data: result.recordset
+            });
+        } else {
+            res.status(404).send({
+                message: "No OUOwner found"
+            });
+        }
+    } catch (error) {
+        console.error("Error retrieving OUOwner:", error);
+
+        // Properly format the error response
+        res.status(500).send({
+            message: "An error occurred while retrieving OUOwner",
+            error: error.message
+        });
+
+        if (next) next(error); // Optional if you want to forward the error
+    }
+};
+
+const getOuOwnerById = async (req, res, next) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request()
@@ -437,8 +436,8 @@ const getAllOuOwner = async (req, res, next) => {
         next(error);
     }
 };
-  
-  
+
+
 
 // create OuOwner
 
@@ -473,7 +472,7 @@ const createOuOwner = async (req, res, next) => {
             .input('EmailID', sql.VarChar(50), EmailID)
             .input('MobNo', sql.VarChar(50), MobNo)
             .input('SecondaryEmailID', sql.VarChar(50), SecondaryEmailID)
-         
+
 
             .query(`
                 INSERT INTO tblMOwner ( Name, EmailID, MobNo, SecondaryEmailID)
@@ -607,5 +606,5 @@ module.exports = {
     getAllOuOwner,
     updateOuOwner,
     deleteOUOwner
-    
+
 };

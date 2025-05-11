@@ -18,7 +18,11 @@ const categoryRouter = require("./Routers/AdminRouters/catagoryRouter");
 const batchRouter = require("./Routers/AdminRouters/batchRouter");
 const attendanceRouter = require("./Routers/EssRouters/attendanceRouter");
 const adminDashboardRouter = require("./Routers/AdminRouters/dashboardRouter");
+const rawReportRouter = require("./Routers/ReportRouters/rawReportRouter");
+const processAttendanceData = require("./service/processAttendanceData");
+const attendanceReportRouter = require("./Routers/ReportRouters/attendanceReportRouter");
 const approvalRouter = require("./Routers/AdminRouters/approvalRouter");
+const essDashBoardRouter = require("./Routers/EssRouters/dashBoardRouter");
 
 const app = express();
 
@@ -60,6 +64,17 @@ app.use('/api/vms', vmsRouter);
 app.use('/api/attendance',attendanceRouter);
 app.use('/api/adminDashboard',adminDashboardRouter)
 app.use('/api/approval',approvalRouter)
+app.use('/api/rawReport',rawReportRouter)
+app.use('/api/attendanceReport',attendanceReportRouter)
+app.use('/api/essDashBoard',essDashBoardRouter)
+
+
+
+
+
+
+
+app.get('/api/dataprocess',processAttendanceData)
 
 // Default Route
 app.get('/', (req, res) => {
@@ -68,7 +83,7 @@ app.get('/', (req, res) => {
 
 // ✅ FIX 4: Proper Error Handling Middleware
 app.use((req, res, next) => {
-    next(createError(404, 'Route Not Found'));
+    next(createError(404, ' server site Route Not Found'));
 });
 
 app.use((err, req, res, next) => {

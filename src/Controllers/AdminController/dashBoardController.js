@@ -84,14 +84,13 @@ const dashBoardLatestAttendance = async (req, res, next) => {
     try {
         const pool = await poolPromise;
         const result = await pool.request().query(`SELECT TOP (100)
-                ROW_NUMBER() OVER (ORDER BY PunchTime DESC) AS id,
-                EmpNo,
-                EmployeeName,
-                PictureName,
-                FORMAT (PunchTime , 'dd-MM-yyyy hh:mm') as PunchTime
-                FROM [EAMS].[Attendance].[tblTAttendanceData] AD
-                INNER JOIN tblMEmployee E ON AD.EmployeeID = E.id
-                ORDER BY PunchTime DESC`);
+    ROW_NUMBER() OVER (ORDER BY PunchTime DESC) AS id,
+    EmpNo,
+    EmployeeName,
+    PictureName,
+    FORMAT(PunchTime, 'dd-MM-yyyy hh:mm') AS PunchTime
+FROM [EAMS].[Attendance].[tblTAttendanceData] AD
+INNER JOIN tblMEmployee E ON AD.EmployeeID = E.id`);
 
         res.status(200).send({
             message: "LatestAttendance are returned",

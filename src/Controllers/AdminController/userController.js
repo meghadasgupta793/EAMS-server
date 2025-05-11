@@ -3,8 +3,6 @@ const { poolPromise, sql } = require("../../config/db");
 //const authenticateToken = require('../../auth/authenticateToken ');
 const { JWT_SECRET } = require('../../secret');
 
-const bcrypt = require('bcryptjs');
-
 const login = async (req, res) => {
     try {
         const authHeader = req.headers['authorization'];
@@ -16,8 +14,6 @@ const login = async (req, res) => {
         const base64Credentials = authHeader.split(' ')[1];
         const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
         const [UserName, Password] = credentials.split(':');
-        console.log('Username:', UserName); // Log the username
-        console.log('Password:', Password); // Log the password
 
         if (!UserName || !Password) {
             return res.status(400).json({ message: 'Username and password are required' });
@@ -29,7 +25,7 @@ const login = async (req, res) => {
             .query(`
                 SELECT U.ID, UR.UserRole, UserName, Password, EmployeeID, 
                        E.EmpNo, E.EmployeeName, E.PictureName as Picture
-                FROM [EAMS].[dbo].[tblMUser] U
+                FROM [dbo].[tblMUser] U
                 INNER JOIN tblMUserRole UR ON UR.UserRole_Id = U.UserRole
                 INNER JOIN tblMEmployee E ON U.EmployeeID = E.id
                 WHERE UserName = @UserName
@@ -41,38 +37,40 @@ const login = async (req, res) => {
 
         const user = result.recordset[0];
 
-        // Directly compare passwords (not recommended)
+        // Direct password comparison (no bcrypt)
         if (Password !== user.Password) {
             return res.status(400).json({ message: 'Invalid username or password' });
         }
 
-        const token = jwt.sign({ id: user.ID }, JWT_SECRET, { expiresIn: '100m' });
+        // Generate JWT token
+        const token = jwt.sign(
+            { id: user.ID, role: user.UserRole },
+            JWT_SECRET,
+            { expiresIn: '20m' }
+        );
 
         // Retrieve license information from `checkLicense` middleware
         const { ServerName, Validtill, Module } = req.licenseInfo || {};
 
-        // Set the JWT token as a cookie with HttpOnly and Secure flags
-        res.cookie('token', token, {
-            httpOnly: true,  // Can't be accessed via JavaScript
-            secure: process.env.NODE_ENV === 'production',  // Only set cookie over HTTPS in production
-            expires: new Date(Date.now() + 120 * 60 * 1000),  // Set expiration to match the JWT token's expiration
-            sameSite: 'Strict'  // Prevents sending the cookie along with cross-site requests
-        });
-
+        // Send token in response
         res.status(200).json({
-            id: user.ID,
-            UserRole: user.UserRole,
-            UserName: user.UserName,
-            EmployeeName: user.EmployeeName,
-            EmpNo: user.EmpNo,
-            EmployeeId: user.EmployeeID,
-            Picture: user.Picture,
-            license: { ServerName, Validtill, Module }  // Include license info in response
+            token, // Include token in response
+            user: {
+                id: user.ID,
+                UserRole: user.UserRole,
+                UserName: user.UserName,
+                EmployeeName: user.EmployeeName,
+                EmpNo: user.EmpNo,
+                EmployeeId: user.EmployeeID,
+                Picture: user.Picture,
+            },
+            license: { ServerName, Validtill, Module }
         });
     } catch (err) {
         res.status(500).json({ message: 'Error logging in', error: err.message });
     }
 };
+
 
 const logout = (req, res) => {
     try {
@@ -130,7 +128,7 @@ const getAllUser = async (req, res, next) => {
 ///create User
 const createUser = async (req, res, next) => {
     try {
-        const { UserName, Password ,UserRole, EmployeeId} = req.body;
+        const { UserName, Password, UserRole, EmployeeId } = req.body;
 
         // Validate input
         if (!UserName || !Password || !UserRole || !EmployeeId) {
@@ -189,6 +187,6 @@ module.exports = {
     login,
     logout,
     createUser
-    
-      
+
+
 };

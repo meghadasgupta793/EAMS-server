@@ -1,29 +1,93 @@
 const { poolPromise, sql } = require("../../config/db");
 
+const unAssignedReporteeList = async (req, res) => {
+    try {
+        const { ApproverEmployeeID, OuId, DepartmentId, DesignationID } = req.body;
+
+        if (!ApproverEmployeeID) {
+            return res.status(400).send({ message: "ApproverEmployeeID is required" });
+        }
+
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .input("ApproverEmployeeID", sql.Int, ApproverEmployeeID)
+            .input("OuId", sql.NVarChar(sql.MAX), OuId || null)
+            .input("DepartmentId", sql.NVarChar(sql.MAX), DepartmentId || null)
+            .input("DesignationID", sql.NVarChar(sql.MAX), DesignationID || null)
+            .execute("sp_GetUnassignedReportees");
+
+        return res.status(200).send({
+            message: "Unassigned reportee list fetched successfully",
+            data: result.recordset
+        });
+    } catch (error) {
+        console.error("SQL Error:", error);
+        return res.status(500).send({
+            message: "SQL Error",
+            error: error.originalError || error
+        });
+    }
+};
+
 
 // approverMapping
 const approverMapping = async (req, res, next) => {
     try {
-        const { EmployeeID, ApprovalLevel,ApproverEmployeeID,LastUpdatedBy } = req.body;
-        if (!EmployeeID || !ApproverEmployeeID) {
-            return res.status(400).send({ message: "Code and Name are required" });
+        const { EmployeeIDs, ApprovalLevel, ApproverEmployeeID, LastUpdatedBy, RequestType } = req.body;
+        
+        // Validate required fields
+        if (!EmployeeIDs || !Array.isArray(EmployeeIDs) || EmployeeIDs.length === 0) {
+            return res.status(400).send({ message: "EmployeeIDs array is required" });
         }
+        if (!ApproverEmployeeID) {
+            return res.status(400).send({ message: "ApproverEmployeeID is required" });
+        }
+        if (!ApprovalLevel) {
+            return res.status(400).send({ message: "ApprovalLevel is required" });
+        }
+        
 
         const pool = await poolPromise;
-        await pool.request()
-            .input('EmployeeID',  EmployeeID)
-            .input('ApprovalLevel', ApprovalLevel)
-            .input('ApproverEmployeeID',  ApproverEmployeeID)
-            .input('LastUpdatedBy',  LastUpdatedBy)
-
-            .query(`insert into ApprovalWorkFlow.tblRApprovalSetupMaster
-  (EmployeeID,ApprovalLevel,ApproverEmployeeID,LastUpdatedOn,LastUpdatedBy)
-  Values (@EmployeeID,@ApprovalLevel,@ApproverEmployeeID,Getdate(),@LastUpdatedBy)`);
-
-        res.status(201).send({
-            message: "approvarMapping created successfully",
-            data: {  EmployeeID, ApprovalLevel,ApproverEmployeeID }
-        });
+        const transaction = new sql.Transaction(pool);
+        
+        try {
+            await transaction.begin();
+            
+            // Prepare the insert query
+            const insertQuery = `
+                INSERT INTO ApprovalWorkFlow.tblRApprovalSetupMaster
+                (EmployeeID, ApprovalLevel, ApproverEmployeeID, LastUpdatedOn, LastUpdatedBy)
+                VALUES (@EmployeeID, @ApprovalLevel, @ApproverEmployeeID, GETDATE(), @LastUpdatedBy)
+            `;
+            
+            // Process each employee ID
+            for (const EmployeeID of EmployeeIDs) {
+                const request = new sql.Request(transaction);
+                await request
+                    .input('EmployeeID', sql.Int, EmployeeID)
+                    .input('ApprovalLevel', sql.VarChar(50), ApprovalLevel)
+                    .input('ApproverEmployeeID', sql.Int, ApproverEmployeeID)
+                    .input('LastUpdatedBy', sql.Int, LastUpdatedBy)
+                    .query(insertQuery);
+            }
+            
+            await transaction.commit();
+            
+            res.status(201).send({
+                message: "Approver mapping created successfully",
+                data: {
+                    EmployeeIDs,
+                    ApprovalLevel,
+                    ApproverEmployeeID,
+                    count: EmployeeIDs.length
+                }
+            });
+            
+        } catch (transactionError) {
+            await transaction.rollback();
+            throw transactionError;
+        }
+        
     } catch (error) {
         res.status(500).send({
             message: "An error occurred while mapping the approver",
@@ -41,7 +105,7 @@ const getReportingLists = async (req, res, next) => {
         }
 
         const pool = await poolPromise;
-        
+
         // Fetch reportingToList
         const reportingToResult = await pool.request()
             .input('EmployeeID', sql.Int, EmployeeID)
@@ -63,7 +127,7 @@ const getReportingLists = async (req, res, next) => {
             empNo: row.EmpNo,
             designation: row.Designation,
             department: row.Department,
-            level:row.Level
+            level: row.Level
         }));
 
         // Fetch reportingByList
@@ -82,12 +146,12 @@ const getReportingLists = async (req, res, next) => {
             `);
 
         const reportingByList = reportingByResult.recordset.map(row => ({
-            empPhoto: row.PictureName ,
+            empPhoto: row.PictureName,
             name: row.EmployeeName,
             empNo: row.EmpNo,
             designation: row.Designation,
             department: row.Department,
-            level:row.Level
+            level: row.Level
         }));
 
         res.status(200).send({ reportingToList, reportingByList });
@@ -106,14 +170,27 @@ const myTeamToday = async (req, res, next) => {
         const result = await pool.request()
             .input('Id', sql.Int, req.params.id)
             .query(`
-                SELECT 
+                 SELECT 
+                E.id,
                     E.EmpNo, 
                     E.EmployeeName, 
                     E.PictureName, 
                     Deg.Name AS Designation,
                     Dept.Name AS Department,
                     FORMAT(ATT.InDateTime, 'HH:mm') AS inTime,
-                    FORMAT(ATT.OutDateTime, 'HH:mm') AS outTime
+                    FORMAT(ATT.OutDateTime, 'HH:mm') AS outTime,
+					FORMAT(DATEADD(MINUTE, ISNULL(ATT.LateIn, 0), '00:00'), 'HH:mm') AS late,
+                	FORMAT(DATEADD(MINUTE, ISNULL(ATT.EarlyOut, 0), '00:00'), 'HH:mm') AS early,
+                    FORMAT(DATEADD(MINUTE, ISNULL(ATT.WorkingTime, 0), '00:00'), 'HH:mm') AS WorkHour,
+					 CASE 
+                        WHEN ATT.InDateTime IS NOT NULL AND ISNULL(ATT.LateIn, 0) = 0 AND ISNULL(ATT.EarlyOut, 0) = 0 THEN 'PP'
+                        WHEN ATT.InDateTime IS NULL AND ATT.OutDateTime IS NULL AND ATT.ShiftAllocated <> 'WO' AND ATT.LeaveInfo IS NULL THEN 'AA'
+                        WHEN ATT.InDateTime IS NOT NULL AND ISNULL(ATT.LateIn, 0) > 0 THEN 'Lt'
+                        WHEN ATT.OutDateTime IS NOT NULL AND ISNULL(ATT.EarlyOut, 0) > 0 THEN 'EE'
+                        WHEN ATT.ShiftAllocated = 'WO' AND ATT.InDateTime IS NULL AND ATT.OutDateTime IS NULL THEN 'WO'
+                        WHEN ATT.LeaveInfo IS NOT NULL THEN 'LV'
+                        ELSE ATT.AttendanceStatus
+                    END AS status
                 FROM [ApprovalWorkFlow].[tblRApprovalSetupMaster] ASM WITH (NOLOCK)
                 INNER JOIN tblMEmployee E WITH (NOLOCK) ON ASM.EmployeeID = E.ID
                 INNER JOIN dbo.DepartmentEmployee() DeptEmp ON E.ID = DeptEmp.EmployeeID
@@ -144,4 +221,4 @@ const myTeamToday = async (req, res, next) => {
 
 
 
-module.exports = { approverMapping ,getReportingLists,myTeamToday};
+module.exports = { approverMapping, getReportingLists, myTeamToday, unAssignedReporteeList };
